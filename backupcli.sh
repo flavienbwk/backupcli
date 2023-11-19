@@ -1,6 +1,7 @@
 #!/bin/bash
 # Easy-to-use backup script with S3 and encryption options.
 # Source: https://github.com/flavienbwk/backupcli
+set -e
 
 BLUE='\033[0;34m'
 RED='\033[0;31m'

@@ -114,7 +114,7 @@ fi
 # Verify if at least one source path is provided and valid
 VALID_SOURCE_PATHS=()
 for SOURCE in "${SOURCE_PATHS[@]}"; do
-    if [ -f "$SOURCE" ]; then
+    if [ -f "$SOURCE" ] || [ -d "$SOURCE" ]; then
         VALID_SOURCE_PATHS+=("$SOURCE")
     else
         log_warning "File not found: $SOURCE. Skipping."

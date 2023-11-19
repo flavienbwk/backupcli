@@ -192,13 +192,15 @@ fi
 # Archive and compress, with optional encryption
 log_info "${#VALID_SOURCE_PATHS[@]} files will be zipped (maximum $TOTAL_SIZE_HR)..."
 for SOURCE in "${VALID_SOURCE_PATHS[@]}"; do
+    find "$SOURCE" -type f ! -name '*.sock' > .backupcli-filelist.txt
     if [ -n "$ENCRYPTION_KEY" ]; then
         # Encrypt the archive with a password
-        7z a -p"$ENCRYPTION_KEY" -mx=9 -mhe -xr!*.sock "$ZIP_FILE_PATH" "$SOURCE"
+        7z a -p"$ENCRYPTION_KEY" -mx=9 -mhe "$ZIP_FILE_PATH" @.backupcli-filelist.txt
     else
         # Create a regular, non-encrypted archive
-        7z a -mx=9 -xr!*.sock "$ZIP_FILE_PATH" "$SOURCE"
+        7z a -mx=9 "$ZIP_FILE_PATH" @.backupcli-filelist.txt
     fi
+    rm .backupcli-filelist.txt
 done
 
 ZIP_FILE_SIZE=$(get_file_size "$ZIP_FILE_PATH")

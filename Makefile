@@ -10,7 +10,6 @@ install: install_gpg install_awscli install_backupcli
 install_gpg:
 	@command -v gpg >/dev/null 2>&1 || { \
 		echo "gpg is not installed. Installing gpg..." && \
-		sudo apt-get update && \
 		sudo apt-get install -y gpg; \
 	}
 

@@ -123,7 +123,7 @@ fi
 VALID_SOURCE_PATHS=()
 for SOURCE in "${SOURCE_PATHS[@]}"; do
     if [ -f "$SOURCE" ] || [ -d "$SOURCE" ]; then
-        VALID_SOURCE_PATHS+=("$SOURCE")
+        VALID_SOURCE_PATHS+=("$(realpath "$SOURCE")")
     else
         log_warning "File not found: $SOURCE. Skipping."
     fi
@@ -194,15 +194,13 @@ fi
 
 # Archive and compress, with optional encryption
 log_info "${#VALID_SOURCE_PATHS[@]} files will be zipped (maximum $TOTAL_SIZE_HR)..."
-for SOURCE in "${VALID_SOURCE_PATHS[@]}"; do
-    if [ -n "$ENCRYPTION_KEY" ]; then
-        # Encrypt the archive with a password
-        tar -czf - --exclude='*.sock' "$SOURCE" | gpg --symmetric --batch --yes --passphrase "$ENCRYPTION_KEY" -o "$ZIP_FILE_PATH"
-    else
-        # Create a regular, non-encrypted compressed archive
-        tar -czf "$ZIP_FILE_PATH" --exclude='*.sock' "$SOURCE"
-    fi
-done
+if [ -n "$ENCRYPTION_KEY" ]; then
+    # Encrypt the archive with a password
+    tar -czf - --exclude='*.sock' "${VALID_SOURCE_PATHS[@]}" | gpg --symmetric --batch --yes --passphrase "$ENCRYPTION_KEY" -o "$ZIP_FILE_PATH"
+else
+    # Create a regular, non-encrypted compressed archive
+    tar -czf "$ZIP_FILE_PATH" --exclude='*.sock' "${VALID_SOURCE_PATHS[@]}"
+fi
 
 ZIP_FILE_SIZE=$(get_file_size "$ZIP_FILE_PATH")
 log_info "Archive complete ($ZIP_FILE_SIZE): $ZIP_FILE_PATH"

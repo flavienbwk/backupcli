@@ -194,10 +194,10 @@ log_info "${#VALID_SOURCE_PATHS[@]} files will be zipped (maximum $TOTAL_SIZE_HR
 for SOURCE in "${VALID_SOURCE_PATHS[@]}"; do
     if [ -n "$ENCRYPTION_KEY" ]; then
         # Encrypt the archive with a password
-        7z a -p"$ENCRYPTION_KEY" -mx=9 -mhe "$ZIP_FILE_PATH" "$SOURCE"
+        7z a -p"$ENCRYPTION_KEY" -mx=9 -mhe -xr!*.sock "$ZIP_FILE_PATH" "$SOURCE"
     else
         # Create a regular, non-encrypted archive
-        7z a -mx=9 "$ZIP_FILE_PATH" "$SOURCE"
+        7z a -mx=9 -xr!*.sock "$ZIP_FILE_PATH" "$SOURCE"
     fi
 done
 

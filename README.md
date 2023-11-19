@@ -12,14 +12,15 @@ sudo make install
 ## Usage
 
 ```bash
-Usage: backupcli <source_path> [options]
+Usage: backupcli [options] <source_paths, ...>
 
 Arguments:
-  source_path              Path to the file or directory to be archived.
+  source_paths              Path to the file or directory to be archived.
+                            Glob patterns supported.
 
 Options:
-  --name <prefix_name>      Mandatory. Specify a prefix name for the archive file.
-  --dest <destination_dir>  Optional if s3 options provided.
+  --name <prefix_name>      Specify a prefix name for the archive file.
+  --dest <destination_dir>  Optional if --s3-bucket and --s3-region are provided.
                             Path to the directory where the archive will be saved.
                             If not provided, a temporary directory will be used.
   --enc <encryption_key>    Encrypt the archive with the specified encryption key.
@@ -27,9 +28,9 @@ Options:
   --s3-region <region_name> Specify the S3 region for the bucket.
 
 Examples:
-  backupcli --name backup /path/to/source /path/to/destination
-  backupcli --name backup --enc secretkey /path/to/source /path/to/destination
-  backupcli --name backup --enc secretkey --s3-bucket mybucket --s3-region us-east-1 /path/to/source
+  backupcli /path/to/source --dst /path/to/destination
+  backupcli /path/to/source --dst /path/to/destination --name backup --enc secretkey
+  backupcli /path/to/source --name backup --enc secretkey --s3-bucket mybucket --s3-region us-east-1
 ```
 
 Example :

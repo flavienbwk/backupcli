@@ -162,7 +162,7 @@ fi
 CURRENT_DATETIME=$(date +"%Y%m%d_%H%M%S")
 
 # Construct the zip file name with date and time as prefix
-ZIP_FILE="${CURRENT_DATETIME}_${PREFIX_NAME}.zip"
+ZIP_FILE="${CURRENT_DATETIME}_${PREFIX_NAME}.7z"
 ZIP_FILE_PATH="${DEST_DIR}/${ZIP_FILE}"
 
 # Calculate total size of VALID_SOURCE_PATHS
@@ -193,9 +193,11 @@ fi
 log_info "${#VALID_SOURCE_PATHS[@]} files will be zipped (maximum $TOTAL_SIZE_HR)..."
 for SOURCE in "${VALID_SOURCE_PATHS[@]}"; do
     if [ -n "$ENCRYPTION_KEY" ]; then
-        zip -q -r -e --password "$ENCRYPTION_KEY" "$ZIP_FILE_PATH" "$SOURCE"
+        # Encrypt the archive with a password
+        7z a -p"$ENCRYPTION_KEY" -mx=9 -mhe "$ZIP_FILE_PATH" "$SOURCE"
     else
-        zip -q -r "$ZIP_FILE_PATH" "$SOURCE"
+        # Create a regular, non-encrypted archive
+        7z a -mx=9 "$ZIP_FILE_PATH" "$SOURCE"
     fi
 done
 

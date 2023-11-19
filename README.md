@@ -67,6 +67,6 @@ You might want to use this script in CRON jobs that runs everyday at 2.30 am :
 
 ## Dependencies
 
-- zip
-- AWS CLI
+- 7zip
+- AWS CLI (optional)
 - Linux Ubuntu

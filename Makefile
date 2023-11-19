@@ -4,11 +4,11 @@
 AWSCLI_URL := https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
 
 # Install target
-install: install_zip install_awscli install_backupcli
+install: install_7zip install_awscli install_backupcli
 
 # Check and install zip if not present
-install_zip:
-	@which zip > /dev/null || (echo "Installing zip..."; sudo apt-get install -y zip)
+install_7zip:
+	@which 7z > /dev/null || (echo "Installing 7z..."; sudo apt-get install -y p7zip)
 
 # Install AWS cli
 install_awscli:
@@ -28,4 +28,4 @@ install_backupcli:
 	@echo "backupcli installed successfully."
 
 # Phony targets
-.PHONY: install install_zip install_awscli install_backupcli
+.PHONY: install install_7zip install_awscli install_backupcli

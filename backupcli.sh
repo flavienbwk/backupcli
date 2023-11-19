@@ -133,7 +133,7 @@ if [ -n "$S3_BUCKET" ] || [ -n "$S3_REGION" ]; then
     fi
 else
     if [ -z "$DEST_DIR" ]; then
-        log_warning "Dry-run mode : you're not using S3 options nor specifying a --dest path."
+        log_warning "Dry-run mode : you're not specifying S3 options nor a --dest path."
     fi
 fi
 

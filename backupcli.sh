@@ -197,10 +197,10 @@ log_info "${#VALID_SOURCE_PATHS[@]} files will be zipped (maximum $TOTAL_SIZE_HR
 for SOURCE in "${VALID_SOURCE_PATHS[@]}"; do
     if [ -n "$ENCRYPTION_KEY" ]; then
         # Encrypt the archive with a password
-        tar -czf - "$SOURCE" | gpg --symmetric --batch --yes --passphrase "$ENCRYPTION_KEY" -o "$ZIP_FILE_PATH"
+        tar -czf - --exclude='*.sock' "$SOURCE" | gpg --symmetric --batch --yes --passphrase "$ENCRYPTION_KEY" -o "$ZIP_FILE_PATH"
     else
         # Create a regular, non-encrypted compressed archive
-        tar -czf "$ZIP_FILE_PATH" "$SOURCE"
+        tar -czf --exclude='*.sock' "$ZIP_FILE_PATH" "$SOURCE"
     fi
 done
 

@@ -3,23 +3,23 @@
 # Source: https://github.com/flavienbwk/backupcli
 
 usage() {
-    echo "Usage: $0 <source_path> [destination_directory] [options]"
+    echo "Usage: $0 <source_path> [options]"
     echo
     echo "Arguments:"
     echo "  source_path              Path to the file or directory to be archived."
-    echo "  destination_directory    Optional if s3 options provided."
-    echo "                           Path to the directory where the archive will be saved."
-    echo "                           If not provided, a temporary directory will be used."
     echo
     echo "Options:"
-    echo "  --name <prefix_name>      Specify a prefix name for the archive file."
+    echo "  --name <prefix_name>      Specify a prefix name for the archive file. (Mandatory)"
+    echo "  --dest <destination_dir>  Optional if s3 options provided."
+    echo "                            Path to the directory where the archive will be saved."
+    echo "                            If not provided, a temporary directory will be used."
     echo "  --enc <encryption_key>    Encrypt the archive with the specified encryption key."
     echo "  --s3-bucket <bucket_name> Specify the S3 bucket for backup."
     echo "  --s3-region <region_name> Specify the S3 region for the bucket."
     echo
     echo "Examples:"
-    echo "  $0 /path/to/source /path/to/destination --name backup"
-    echo "  $0 /path/to/source /path/to/destination --name backup --enc secretkey"
+    echo "  $0 /path/to/source --dst /path/to/destination --name backup"
+    echo "  $0 /path/to/source --dst /path/to/destination --name backup --enc secretkey"
     echo "  $0 /path/to/source --name backup --enc secretkey --s3-bucket mybucket --s3-region us-east-1"
     exit 1
 }
@@ -63,34 +63,45 @@ while [ $# -gt 0 ]; do
             PREFIX_NAME=$2
             shift 2
             ;;
+        --dest)
+            DEST_DIR=$2
+            shift 2
+            ;;
         *)
-            # Assuming the remaining arguments are source path and destination directory
+            # Assuming the remaining argument is the source path
             if [ -z "$SOURCE_PATH" ]; then
                 SOURCE_PATH=$1
-            elif [ -z "$DEST_DIR" ]; then
-                DEST_DIR=$1
+            else
+                usage
             fi
             shift
             ;;
     esac
 done
 
-# Verify if source path is provided
-if [ -z "$SOURCE_PATH" ]; then
-    usage
-fi
-
 # Verify if source path is provided and valid
 if [ -z "$SOURCE_PATH" ] || [ ! -e "$SOURCE_PATH" ]; then
     echo "Invalid or no source path provided : $SOURCE_PATH"
-    exit 1
+    usage
 fi
 
-# Use a temporary directory if no destination directory is provided
-if [ -z "$DEST_DIR" ]; then
+# Verify if the name is provided
+if [ -z "$PREFIX_NAME" ]; then
+    echo "The --name option is mandatory."
+fi
+
+# Use a temporary directory if no destination directory is provided and S3 options are not given
+if [ -z "$DEST_DIR" ] && ([ -z "$S3_BUCKET" ] || [ -z "$S3_REGION" ]); then
     DEST_DIR=$(mktemp -d)
     echo "No destination directory provided. Using temporary directory: $DEST_DIR"
 fi
+if [ -d "$DEST_DIR" ]; then
+    echo "Destination directory : $DEST_DIR"
+else
+    echo "Directory does not exist : $DEST_DIR"
+    exit 1
+fi
+
 
 # Get current date and time for file naming
 CURRENT_DATETIME=$(date +"%Y%m%d_%H%M%S")
@@ -99,7 +110,7 @@ CURRENT_DATETIME=$(date +"%Y%m%d_%H%M%S")
 ZIP_FILE="${CURRENT_DATETIME}_${PREFIX_NAME}.zip"
 
 # Change to the source directory to avoid including the path in the zip file
-cd "$(dirname "$SOURCE_PATH")"
+cd "$(dirname "$SOURCE_PATH")" || exit
 SOURCE_NAME="$(basename "$SOURCE_PATH")"
 
 # Archive and compress, with optional encryption

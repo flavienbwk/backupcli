@@ -2,15 +2,28 @@
 # Easy-to-use backup script with S3 and encryption options.
 # Source: https://github.com/flavienbwk/backupcli
 
+BLUE='\033[0;34m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+log_info() {
+    echo -e "${BLUE}$(date --iso-8601=seconds) INFO:${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}$(date --iso-8601=seconds) ERROR:${NC} $1"
+}
+
 usage() {
-    echo "Usage: $0 <source_path> [options]"
+    echo "Usage: $0 [options] <source_paths, ...>"
     echo
     echo "Arguments:"
-    echo "  source_path              Path to the file or directory to be archived."
+    echo "  source_paths              Path to the file or directory to be archived."
+    echo "                            Glob patterns supported."
     echo
     echo "Options:"
-    echo "  --name <prefix_name>      Specify a prefix name for the archive file. (Mandatory)"
-    echo "  --dest <destination_dir>  Optional if s3 options provided."
+    echo "  --name <prefix_name>      Specify a prefix name for the archive file."
+    echo "  --dest <destination_dir>  Optional if --s3-bucket and --s3-region are provided."
     echo "                            Path to the directory where the archive will be saved."
     echo "                            If not provided, a temporary directory will be used."
     echo "  --enc <encryption_key>    Encrypt the archive with the specified encryption key."
@@ -18,10 +31,9 @@ usage() {
     echo "  --s3-region <region_name> Specify the S3 region for the bucket."
     echo
     echo "Examples:"
-    echo "  $0 /path/to/source --dst /path/to/destination --name backup"
+    echo "  $0 /path/to/source --dst /path/to/destination"
     echo "  $0 /path/to/source --dst /path/to/destination --name backup --enc secretkey"
     echo "  $0 /path/to/source --name backup --enc secretkey --s3-bucket mybucket --s3-region us-east-1"
-    exit 1
 }
 
 # Initialize variables
@@ -29,18 +41,18 @@ ENCRYPTION_KEY=""
 S3_BUCKET=""
 S3_REGION=""
 PREFIX_NAME="archive" # Default prefix name
-SOURCE_PATH=""
+SOURCE_PATHS=()
 DEST_DIR=""
 
 # Check if zip is installed
 if ! command -v zip &> /dev/null; then
-    echo "zip package is not installed. Please install it and try again."
+    log_error "zip package is not installed. Please install it and try again."
     exit 1
 fi
 
 # Check if s3backup binary is installed
 if ! command -v s3backup &> /dev/null; then
-    echo "Install s3backup from https://github.com/tomcz/s3backup"
+    log_error "Install s3backup from https://github.com/tomcz/s3backup or run 'make install'"
     exit 1
 fi
 
@@ -68,37 +80,48 @@ while [ $# -gt 0 ]; do
             shift 2
             ;;
         *)
-            # Assuming the remaining argument is the source path
-            if [ -z "$SOURCE_PATH" ]; then
-                SOURCE_PATH=$1
-            else
-                usage
-            fi
+            # Assuming the remaining arguments are the sources paths
+            SOURCE_PATHS+=("$1")
             shift
             ;;
     esac
 done
 
-# Verify if source path is provided and valid
-if [ -z "$SOURCE_PATH" ] || [ ! -e "$SOURCE_PATH" ]; then
-    echo "Invalid or no source path provided : $SOURCE_PATH"
+if [ ${#SOURCE_PATHS[@]} -eq 0 ]; then
     usage
+    exit 1
 fi
 
-# Verify if the name is provided
-if [ -z "$PREFIX_NAME" ]; then
-    echo "The --name option is mandatory."
+# Verify if at least one source path is provided and valid
+if [ ${#SOURCE_PATHS[@]} -eq 0 ]; then
+    usage
+    log_error "No source path provided."
+fi
+
+# Verify if at least one source path is provided and valid
+
+# Assess valid S3 options
+if [ -n "$S3_BUCKET" ] || [ -n "$S3_REGION" ]; then
+    if [ -z "$S3_BUCKET" ] || [ -z "$S3_REGION" ]; then
+        log_error "You must specify both --s3-bucket and --s3-region options to use S3."
+        exit 1
+    fi
+else
+    if [ -z "$DEST_DIR" ]; then
+        log_error "If you're not using S3 options, please specify a --dest path."
+        exit 1
+    fi
 fi
 
 # Use a temporary directory if no destination directory is provided and S3 options are not given
 if [ -z "$DEST_DIR" ] && ([ -z "$S3_BUCKET" ] || [ -z "$S3_REGION" ]); then
     DEST_DIR=$(mktemp -d)
-    echo "No destination directory provided. Using temporary directory: $DEST_DIR"
+    log_info "No destination directory provided. Using temporary directory: $DEST_DIR"
 fi
 if [ -d "$DEST_DIR" ]; then
-    echo "Destination directory : $DEST_DIR"
+    log_info "Destination directory : $DEST_DIR"
 else
-    echo "Directory does not exist : $DEST_DIR"
+    log_info "Directory does not exist : $DEST_DIR"
     exit 1
 fi
 
@@ -109,16 +132,17 @@ CURRENT_DATETIME=$(date +"%Y%m%d_%H%M%S")
 # Construct the zip file name with date and time as prefix
 ZIP_FILE="${CURRENT_DATETIME}_${PREFIX_NAME}.zip"
 
-# Change to the source directory to avoid including the path in the zip file
-cd "$(dirname "$SOURCE_PATH")" || exit
-SOURCE_NAME="$(basename "$SOURCE_PATH")"
-
 # Archive and compress, with optional encryption
-if [ -n "$ENCRYPTION_KEY" ]; then
-    zip -r -e --password "$ENCRYPTION_KEY" "$ZIP_FILE" "$SOURCE_NAME"
-else
-    zip -r "$ZIP_FILE" "$SOURCE_NAME"
-fi
+log_info "${#SOURCE_PATHS[@]} files will be zipped..."
+for SOURCE in "${SOURCE_PATHS[@]}"; do
+    if [ -n "$ENCRYPTION_KEY" ]; then
+        zip -r -e --password "$ENCRYPTION_KEY" "$ZIP_FILE" "$SOURCE"
+    else
+        zip -r "$ZIP_FILE" "$SOURCE"
+    fi
+done
+
+log_info "Archive complete."
 
 # Move the zip file to the destination directory
 mv "$ZIP_FILE" "$DEST_DIR/"
@@ -128,6 +152,8 @@ echo "Archive created and moved to $DEST_DIR/$ZIP_FILE"
 
 # Check if both S3 variables are filled
 if [ -n "$S3_BUCKET" ] && [ -n "$S3_REGION" ]; then
-    echo "Backing up to S3: $ZIP_FILE..."
-    s3backup put --region="$S3_REGION" "$DEST_PATH" "s3://ca-bhs2-srv-01-personal-backups/$ZIP_FILE"
+    echo "Starting S3 process for $ZIP_FILE..."
+    s3backup put --region="$S3_REGION" "$DEST_PATH" "s3://$S3_BUCKET/$ZIP_FILE"
 fi
+
+log_info "End of script."

@@ -20,9 +20,9 @@ Arguments:
 
 Options:
   --name <prefix_name>      Specify a prefix name for the archive file.
-  --dest <destination_dir>  Optional if --s3-bucket and --s3-region are provided.
-                            Path to the directory where the archive will be saved.
+  --dest <destination_dir>  Path to the directory where the archive will be saved.
                             If not provided, a temporary directory will be used.
+                            Might be use omitted for dry-run.
   --enc <encryption_key>    Encrypt the archive with the specified encryption key.
   --s3-bucket <bucket_name> Specify the S3 bucket for backup.
   --s3-region <region_name> Specify the S3 region for the bucket.

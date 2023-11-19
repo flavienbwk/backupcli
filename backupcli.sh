@@ -29,9 +29,9 @@ usage() {
     echo
     echo "Options:"
     echo "  --name <prefix_name>      Specify a prefix name for the archive file."
-    echo "  --dest <destination_dir>  Optional if --s3-bucket and --s3-region are provided."
-    echo "                            Path to the directory where the archive will be saved."
+    echo "  --dest <destination_dir>  Path to the directory where the archive will be saved."
     echo "                            If not provided, a temporary directory will be used."
+    echo "                            Might be use omitted for dry-run."
     echo "  --enc <encryption_key>    Encrypt the archive with the specified encryption key."
     echo "  --s3-bucket <bucket_name> Specify the S3 bucket for backup."
     echo "  --s3-region <region_name> Specify the S3 region for the bucket."
@@ -133,8 +133,7 @@ if [ -n "$S3_BUCKET" ] || [ -n "$S3_REGION" ]; then
     fi
 else
     if [ -z "$DEST_DIR" ]; then
-        log_error "If you're not using S3 options, please specify a --dest path."
-        exit 1
+        log_warning "Dry-run mode : you're not using S3 options nor specifying a --dest path."
     fi
 fi
 

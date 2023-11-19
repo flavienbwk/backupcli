@@ -137,8 +137,8 @@ else
     fi
 fi
 
-# Use a temporary directory if no destination directory is provided and S3 options are not given
-if [ -z "$DEST_DIR" ] && ([ -z "$S3_BUCKET" ] || [ -z "$S3_REGION" ]); then
+# Use a temporary directory if no destination directory is provided
+if [ -z "$DEST_DIR" ]; then
     DEST_DIR=$(mktemp -d)
     log_info "No destination directory provided. Using temporary directory: $DEST_DIR"
 fi

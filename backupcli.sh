@@ -44,6 +44,14 @@ usage() {
     echo "  $0 /path/to/source --name backup --enc secretkey --s3-bucket mybucket --s3-region us-east-1"
 }
 
+# Function to output the size of the provided file
+get_file_size() {
+    local zip_file="$1"
+    local size
+    size=$(du -h "$zip_file" | cut -f1)
+    echo "$size"
+}
+
 # Initialize variables defaults
 ENCRYPTION_KEY=""
 S3_BUCKET=""
@@ -155,24 +163,44 @@ CURRENT_DATETIME=$(date +"%Y%m%d_%H%M%S")
 
 # Construct the zip file name with date and time as prefix
 ZIP_FILE="${CURRENT_DATETIME}_${PREFIX_NAME}.zip"
+ZIP_FILE_PATH="${DEST_DIR}/${ZIP_FILE}"
+
+# Calculate total size of VALID_SOURCE_PATHS
+TOTAL_SIZE=0
+for SOURCE in "${VALID_SOURCE_PATHS[@]}"; do
+    if [ -d "$SOURCE" ]; then
+        SIZE=$(du -sb "$SOURCE" | cut -f1)
+    else
+        SIZE=$(stat -c%s "$SOURCE")
+    fi
+    TOTAL_SIZE=$((TOTAL_SIZE + SIZE + 4096))
+done
+
+# Get available disk space in DEST_DIR
+AVAILABLE_SPACE=$(df --output=avail "$DEST_DIR" | tail -n 1)
+
+# Convert sizes to human-readable format
+TOTAL_SIZE_HR=$(numfmt --to=iec --suffix=B "$TOTAL_SIZE")
+AVAILABLE_SPACE_HR=$(numfmt --to=iec --suffix=B "$AVAILABLE_SPACE")
+
+# Check if there is enough space
+if [ "$TOTAL_SIZE" -gt "$AVAILABLE_SPACE" ]; then
+    log_error "Not enough space in destination directory $DEST_DIR ($TOTAL_SIZE_HR requested but only $AVAILABLE_SPACE_HR are available)."
+    exit 1
+fi
 
 # Archive and compress, with optional encryption
-log_info "${#VALID_SOURCE_PATHS[@]} files will be zipped..."
+log_info "${#VALID_SOURCE_PATHS[@]} files will be zipped (maximum $TOTAL_SIZE_HR)..."
 for SOURCE in "${VALID_SOURCE_PATHS[@]}"; do
     if [ -n "$ENCRYPTION_KEY" ]; then
-        zip -q -r -e --password "$ENCRYPTION_KEY" "$ZIP_FILE" "$SOURCE"
+        zip -q -r -e --password "$ENCRYPTION_KEY" "$ZIP_FILE_PATH" "$SOURCE"
     else
-        zip -q -r "$ZIP_FILE" "$SOURCE"
+        zip -q -r "$ZIP_FILE_PATH" "$SOURCE"
     fi
 done
 
-log_info "Archive complete."
-
-# Move the zip file to the destination directory
-mv "$ZIP_FILE" "$DEST_DIR/"
-DEST_PATH="$DEST_DIR/$ZIP_FILE"
-
-echo "Archive created and moved to $DEST_DIR/$ZIP_FILE"
+ZIP_FILE_SIZE=$(get_file_size "$ZIP_FILE_PATH")
+log_info "Archive complete ($ZIP_FILE_SIZE): $ZIP_FILE_PATH"
 
 # Check if both S3 variables are filled
 if [ -n "$S3_BUCKET" ] && [ -n "$S3_REGION" ]; then

@@ -4,6 +4,7 @@
 
 BLUE='\033[0;34m'
 RED='\033[0;31m'
+YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
 log_info() {
@@ -12,6 +13,10 @@ log_info() {
 
 log_error() {
     echo -e "${RED}$(date --iso-8601=seconds) ERROR:${NC} $1"
+}
+
+log_warning() {
+    echo -e "${YELLOW}$(date --iso-8601=seconds) WARN:${NC} $1"
 }
 
 usage() {
@@ -99,6 +104,18 @@ if [ ${#SOURCE_PATHS[@]} -eq 0 ]; then
 fi
 
 # Verify if at least one source path is provided and valid
+VALID_SOURCE_PATHS=()
+for SOURCE in "${SOURCE_PATHS[@]}"; do
+    if [ -f "$SOURCE" ]; then
+        VALID_SOURCE_PATHS+=("$SOURCE")
+    else
+        log_warning "File not found: $SOURCE. Skipping."
+    fi
+done
+if [ ${#VALID_SOURCE_PATHS[@]} -eq 0 ]; then
+    log_error "No valid path provided."
+    exit 1
+fi
 
 # Assess valid S3 options
 if [ -n "$S3_BUCKET" ] || [ -n "$S3_REGION" ]; then
@@ -133,8 +150,8 @@ CURRENT_DATETIME=$(date +"%Y%m%d_%H%M%S")
 ZIP_FILE="${CURRENT_DATETIME}_${PREFIX_NAME}.zip"
 
 # Archive and compress, with optional encryption
-log_info "${#SOURCE_PATHS[@]} files will be zipped..."
-for SOURCE in "${SOURCE_PATHS[@]}"; do
+log_info "${#VALID_SOURCE_PATHS[@]} files will be zipped..."
+for SOURCE in "${VALID_SOURCE_PATHS[@]}"; do
     if [ -n "$ENCRYPTION_KEY" ]; then
         zip -r -e --password "$ENCRYPTION_KEY" "$ZIP_FILE" "$SOURCE"
     else

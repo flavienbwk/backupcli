@@ -55,6 +55,12 @@ If you want more security, use symmetric encryption :
 backupcli /path/to/gitlab_backup_dir --name gitlab_backup --enc supersecretpassword --s3-bucket mybucket --s3-region eu-west-3
 ```
 
+To decrypt your encrypted archive :
+
+```bash
+gpg --decrypt --batch --passphrase "YourPassphrase" -o myarchive.tar.gz myarchive.tar.gz.gpg
+```
+
 You might want to [setup Buckets Lifecycle](https://docs.aws.amazon.com/AmazonS3/latest/userguide/lifecycle-expire-general-considerations.html) to remove a bucket's files after a specific time (e.g: 30 days).
 
 ## CRON example
@@ -67,6 +73,6 @@ You might want to use this script in CRON jobs that runs everyday at 2.30 am :
 
 ## Dependencies
 
-- 7zip
+- gpg
 - AWS CLI (optional)
 - Linux Ubuntu

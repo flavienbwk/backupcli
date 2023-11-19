@@ -14,7 +14,7 @@ install_7zip:
 		temp_dir=$$(mktemp -d) && \
 		curl "$(SEVEN_ZIP_URL)" -o "$$temp_dir/7z.tar.xz" && \
 		tar -xf "$$temp_dir/7z.tar.xz" -C $$temp_dir && \
-		sudo cp $$temp_dir/7z*/7z /usr/local/bin/ && \
+		sudo cp $$temp_dir/7zz /usr/local/bin/7zz && \
 		sudo chmod +x /usr/local/bin/7z; \
 	}
 

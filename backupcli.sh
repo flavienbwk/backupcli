@@ -160,9 +160,9 @@ ZIP_FILE="${CURRENT_DATETIME}_${PREFIX_NAME}.zip"
 log_info "${#VALID_SOURCE_PATHS[@]} files will be zipped..."
 for SOURCE in "${VALID_SOURCE_PATHS[@]}"; do
     if [ -n "$ENCRYPTION_KEY" ]; then
-        zip -r -e --password "$ENCRYPTION_KEY" "$ZIP_FILE" "$SOURCE"
+        zip -q -r -e --password "$ENCRYPTION_KEY" "$ZIP_FILE" "$SOURCE"
     else
-        zip -r "$ZIP_FILE" "$SOURCE"
+        zip -q -r "$ZIP_FILE" "$SOURCE"
     fi
 done
 

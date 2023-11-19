@@ -205,7 +205,7 @@ log_info "Archive complete ($ZIP_FILE_SIZE): $ZIP_FILE_PATH"
 # Check if both S3 variables are filled
 if [ -n "$S3_BUCKET" ] && [ -n "$S3_REGION" ]; then
     echo "Starting S3 process for $ZIP_FILE..."
-    aws s3 cp --region="$S3_REGION" --storage-class="$S3_STORAGE_CLASS" "$DEST_PATH" "s3://$S3_BUCKET/$ZIP_FILE"
+    aws s3 cp --region="$S3_REGION" --storage-class="$S3_STORAGE_CLASS" "$ZIP_FILE_PATH" "s3://$S3_BUCKET/$ZIP_FILE"
 fi
 
 log_info "End of script."

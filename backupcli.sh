@@ -200,7 +200,7 @@ for SOURCE in "${VALID_SOURCE_PATHS[@]}"; do
         tar -czf - --exclude='*.sock' "$SOURCE" | gpg --symmetric --batch --yes --passphrase "$ENCRYPTION_KEY" -o "$ZIP_FILE_PATH"
     else
         # Create a regular, non-encrypted compressed archive
-        tar -czf --exclude='*.sock' "$ZIP_FILE_PATH" "$SOURCE"
+        tar -czf "$ZIP_FILE_PATH" --exclude='*.sock' "$SOURCE"
     fi
 done
 

@@ -4,13 +4,20 @@
 AWSCLI_URL := https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
 
 # Install target
-install: install_gpg install_awscli install_backupcli
+install: install_pigz install_gpg install_awscli install_backupcli
 
 # Install gpg
 install_gpg:
 	@command -v gpg >/dev/null 2>&1 || { \
 		echo "gpg is not installed. Installing gpg..." && \
 		sudo apt-get install -y gpg; \
+	}
+
+# Install ZIP
+install_pigz:
+	@command -v pigz >/dev/null 2>&1 || { \
+		echo "pigz is not installed. Installing pigz..." && \
+		sudo apt-get install -y pigz; \
 	}
 
 # Install AWS cli
@@ -31,4 +38,4 @@ install_backupcli:
 	@echo "backupcli installed successfully."
 
 # Phony targets
-.PHONY: install install_gpg install_awscli install_backupcli
+.PHONY: install install_pigz install_gpg install_awscli install_backupcli

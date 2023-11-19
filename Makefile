@@ -2,13 +2,21 @@
 
 # Variables
 AWSCLI_URL := https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+SEVEN_ZIP_URL := https://www.7-zip.org/a/7z2301-linux-x64.tar.xz
 
 # Install target
 install: install_7zip install_awscli install_backupcli
 
-# Check and install zip if not present
+# Install 7-Zip
 install_7zip:
-	@which 7z > /dev/null || (echo "Installing 7z..."; sudo apt-get install -y p7zip)
+	@command -v 7z >/dev/null 2>&1 || { \
+		echo "Downloading and installing 7z..." && \
+		temp_dir=$$(mktemp -d) && \
+		curl "$(SEVEN_ZIP_URL)" -o "$$temp_dir/7z.tar.xz" && \
+		tar -xf "$$temp_dir/7z.tar.xz" -C $$temp_dir && \
+		sudo cp $$temp_dir/7z*/7z /usr/local/bin/ && \
+		sudo chmod +x /usr/local/bin/7z; \
+	}
 
 # Install AWS cli
 install_awscli:

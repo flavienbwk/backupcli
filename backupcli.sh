@@ -177,7 +177,7 @@ for SOURCE in "${VALID_SOURCE_PATHS[@]}"; do
 done
 
 # Get available disk space in DEST_DIR
-AVAILABLE_SPACE=$(df --output=avail "$DEST_DIR" | tail -n 1)
+AVAILABLE_SPACE=$(( $(df --output=avail "$DEST_DIR" | tail -n 1) * 1000))
 
 # Convert sizes to human-readable format
 TOTAL_SIZE_HR=$(numfmt --to=iec --suffix=B "$TOTAL_SIZE")

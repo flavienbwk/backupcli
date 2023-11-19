@@ -20,7 +20,7 @@ If you want to use S3, first [configure your AWS access and secret keys](https:/
 Then, you can use it this way :
 
 ```bash
-./backup.sh --enc supersecretpassword --s3-bucket mybucket --s3-region eu-west-3 --name gitlab_backup /path/to/gitlab_backup_dir
+./backup.sh --s3-bucket mybucket --s3-region eu-west-3 --name gitlab_backup /path/to/gitlab_backup_dir
 ```
 
 If you want more security, use symmetric encryption :

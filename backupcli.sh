@@ -34,6 +34,8 @@ usage() {
     echo "  --enc <encryption_key>    Encrypt the archive with the specified encryption key."
     echo "  --s3-bucket <bucket_name> Specify the S3 bucket for backup."
     echo "  --s3-region <region_name> Specify the S3 region for the bucket."
+    echo "  --s3-storage-class <sc>   Specify the S3 storage class for the bucket."
+    echo "                            Default to STANDARD. Can be INTELLIGENT_TIERING, STANDARD_IA, GLACIER..."
     echo
     echo "Examples:"
     echo "  $0 /path/to/source --dst /path/to/destination"
@@ -41,11 +43,12 @@ usage() {
     echo "  $0 /path/to/source --name backup --enc secretkey --s3-bucket mybucket --s3-region us-east-1"
 }
 
-# Initialize variables
+# Initialize variables defaults
 ENCRYPTION_KEY=""
 S3_BUCKET=""
 S3_REGION=""
-PREFIX_NAME="archive" # Default prefix name
+S3_STORAGE_CLASS="STANDARD"
+PREFIX_NAME="archive"
 SOURCE_PATHS=()
 DEST_DIR=""
 
@@ -74,6 +77,10 @@ while [ $# -gt 0 ]; do
             ;;
         --s3-region)
             S3_REGION=$2
+            shift 2
+            ;;
+        --s3-storage-class)
+            S3_STORAGE_CLASS=$2
             shift 2
             ;;
         --name)
@@ -170,7 +177,7 @@ echo "Archive created and moved to $DEST_DIR/$ZIP_FILE"
 # Check if both S3 variables are filled
 if [ -n "$S3_BUCKET" ] && [ -n "$S3_REGION" ]; then
     echo "Starting S3 process for $ZIP_FILE..."
-    s3backup put --region="$S3_REGION" "$DEST_PATH" "s3://$S3_BUCKET/$ZIP_FILE"
+    aws s3 cp --region="$S3_REGION" --storage-class="$S3_STORAGE_CLASS" "$DEST_PATH" "s3://$S3_BUCKET/$ZIP_FILE"
 fi
 
 log_info "End of script."

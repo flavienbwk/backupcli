@@ -26,6 +26,8 @@ Options:
   --enc <encryption_key>    Encrypt the archive with the specified encryption key.
   --s3-bucket <bucket_name> Specify the S3 bucket for backup.
   --s3-region <region_name> Specify the S3 region for the bucket.
+  --s3-storage-class <sc>   Specify the S3 storage class for the bucket.
+                            Default to STANDARD. Can be INTELLIGENT_TIERING, STANDARD_IA, GLACIER...
 
 Examples:
   backupcli /path/to/source --dst /path/to/destination
@@ -66,5 +68,5 @@ You might want to use this script in CRON jobs that runs everyday at 2.30 am :
 ## Dependencies
 
 - zip
-- [s3backup](https://github.com/tomcz/s3backup)
+- AWS CLI
 - Linux Ubuntu

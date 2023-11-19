@@ -5,7 +5,7 @@ Easy-to-use backup script with S3 and encryption options.
 ## Install
 
 ```bash
-git clone https://github.com/flavienbwk/backupcli
+git clone https://github.com/flavienbwk/backupcli && cd backupcli
 sudo make install
 ```
 

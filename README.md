@@ -12,7 +12,7 @@ sudo make install
 ## Usage
 
 ```bash
-Usage: ./backupcli.sh <source_path> [destination_directory] [options]
+Usage: backupcli <source_path> [destination_directory] [options]
 
 Arguments:
   source_path              Path to the file or directory to be archived.
@@ -27,9 +27,9 @@ Options:
   --s3-region <region_name> Specify the S3 region for the bucket.
 
 Examples:
-  ./backupcli.sh /path/to/source /path/to/destination --name backup
-  ./backupcli.sh /path/to/source /path/to/destination --name backup --enc secretkey
-  ./backupcli.sh /path/to/source --name backup --enc secretkey --s3-bucket mybucket --s3-region us-east-1
+  backupcli /path/to/source /path/to/destination --name backup
+  backupcli /path/to/source /path/to/destination --name backup --enc secretkey
+  backupcli /path/to/source --name backup --enc secretkey --s3-bucket mybucket --s3-region us-east-1
 ```
 
 Example :

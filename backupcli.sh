@@ -67,12 +67,6 @@ if ! command -v zip &> /dev/null; then
     exit 1
 fi
 
-# Check if s3backup binary is installed
-if ! command -v s3backup &> /dev/null; then
-    log_error "Install s3backup from https://github.com/tomcz/s3backup or run 'make install'"
-    exit 1
-fi
-
 # Parse arguments
 while [ $# -gt 0 ]; do
     case "$1" in

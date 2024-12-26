@@ -28,15 +28,16 @@ usage() {
     echo "                            Glob patterns supported."
     echo
     echo "Options:"
-    echo "  --name <prefix_name>      Specify a prefix name for the archive file."
-    echo "  --dest <destination_dir>  Path to the directory where the archive will be saved."
-    echo "                            If not provided, a temporary directory will be used."
-    echo "                            Might be use omitted for dry-run."
-    echo "  --enc <encryption_key>    Encrypt the archive with the specified encryption key."
-    echo "  --s3-bucket <bucket_name> Specify the S3 bucket for backup."
-    echo "  --s3-region <region_name> Specify the S3 region for the bucket."
-    echo "  --s3-storage-class <sc>   Specify the S3 storage class for the bucket."
-    echo "                            Default to STANDARD. Can be INTELLIGENT_TIERING, STANDARD_IA, GLACIER..."
+    echo "  --name <prefix_name>                Specify a prefix name for the archive file."
+    echo "  --dest <destination_dir>            Path to the directory where the archive will be saved."
+    echo "                                      If not provided, a temporary directory will be used."
+    echo "                                      Might be use omitted for dry-run."
+    echo "  --enc <encryption_key>              Encrypt the archive with the specified encryption key."
+    echo "  --s3-bucket <bucket_name>           Specify the S3 bucket for backup."
+    echo "  --s3-region <region_name>           Specify the S3 region for the bucket."
+    echo "  --s3-storage-class <sc>             Specify the S3 storage class for the bucket."
+    echo "                                      Default to STANDARD. Can be INTELLIGENT_TIERING, STANDARD_IA, GLACIER..."
+    echo "  --s3-endpoint-url <url>             Specify the S3 endpoint for the bucket."
     echo
     echo "Examples:"
     echo "  $0 /path/to/source --dst /path/to/destination"
@@ -57,6 +58,7 @@ ENCRYPTION_KEY=""
 S3_BUCKET=""
 S3_REGION=""
 S3_STORAGE_CLASS="STANDARD"
+S3_ENDPOINT_URL=""
 PREFIX_NAME="archive"
 SOURCE_PATHS=()
 DEST_DIR=""
@@ -84,6 +86,10 @@ while [ $# -gt 0 ]; do
             ;;
         --s3-storage-class)
             S3_STORAGE_CLASS=$2
+            shift 2
+            ;;
+        --s3-endpoint-url)
+            S3_ENDPOINT_URL=$2
             shift 2
             ;;
         --name)
@@ -202,7 +208,11 @@ log_info "Archive complete ($ZIP_FILE_SIZE): $ZIP_FILE_PATH"
 # Check if both S3 variables are filled
 if [ -n "$S3_BUCKET" ] && [ -n "$S3_REGION" ]; then
     echo "Starting S3 process for $ZIP_FILE..."
-    aws s3 cp --region="$S3_REGION" --storage-class="$S3_STORAGE_CLASS" "$ZIP_FILE_PATH" "s3://$S3_BUCKET/$ZIP_FILE"
+    S3_ARGS="--region=$S3_REGION --storage-class=$S3_STORAGE_CLASS"
+    if [ -n "$S3_ENDPOINT_URL" ]; then
+        S3_ARGS="$S3_ARGS --endpoint-url=$S3_ENDPOINT_URL"
+    fi
+    aws s3 cp $S3_ARGS "$ZIP_FILE_PATH" "s3://$S3_BUCKET/$ZIP_FILE"
 fi
 
 log_info "End of script."

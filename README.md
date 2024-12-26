@@ -28,6 +28,7 @@ Options:
   --s3-region <region_name> Specify the S3 region for the bucket.
   --s3-storage-class <sc>   Specify the S3 storage class for the bucket.
                             Default to STANDARD. Can be INTELLIGENT_TIERING, STANDARD_IA, GLACIER...
+  --s3-endpoint-url <url>   Specify the S3 endpoint for the bucket.
 
 Examples:
   backupcli /path/to/source --dst /path/to/destination

@@ -72,6 +72,14 @@ You might want to use this script in CRON jobs that runs everyday at 2.30 am :
 30 2 * * * backupcli --enc supersecretpassword --s3-bucket mybucket --s3-region eu-west-3 --name gitlab_backup /path/to/gitlab_backup_dir
 ```
 
+## Tested host providers
+
+Tested with:
+
+- AWS ✅
+- OVHCloud ✅
+- Scaleway ✅
+
 ## Dependencies
 
 - pigz

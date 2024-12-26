@@ -17,7 +17,7 @@ install_gpg:
 install_pigz:
 	@command -v pigz >/dev/null 2>&1 || { \
 		echo "pigz is not installed. Installing pigz..." && \
-		sudo apt-get install -y pigz zip unzip; \
+		sudo apt-get install -y pigz zip; \
 	}
 
 # Install AWS cli

@@ -66,15 +66,10 @@ gpg --decrypt --batch --passphrase "YourPassphrase" -o myarchive.tar.gz myarchiv
 
 ## Using ptar format
 
-The `--ptar` option uses the modern [ptar format](https://www.plakar.io/posts/2025-06-27/it-doesnt-make-sense-to-wrap-modern-data-in-a-1979-format-introducing-.ptar/) from Plakar, which provides:
+The `--ptar` option uses the modern [ptar format](https://www.plakar.io/posts/2025-06-27/it-doesnt-make-sense-to-wrap-modern-data-in-a-1979-format-introducing-.ptar/) from Plakar
 
-- **Deduplication** - Content-addressed storage that avoids storing duplicate data
-- **Built-in encryption** - Strong encryption enabled by default when using `--enc`
-- **Compression** - Post-deduplication compression
-- **Tamper-evident** - Cryptographically signed and immutable
-- **Browsable** - Access files without full extraction via `plakar at archive.ptar ls`
-
-Install plakar (Debian/Ubuntu):
+<details>
+<summary>👉 Install dependencies to use plakar (Debian/Ubuntu)</summary>
 
 ```bash
 curl -fsSL https://packages.plakar.io/keys/plakar.gpg | sudo gpg --dearmor -o /usr/share/keyrings/plakar.gpg
@@ -108,6 +103,8 @@ plakar at myarchive.ptar restore -to ./recovery /path/to/file
 ```
 
 You might want to [setup Buckets Lifecycle](https://docs.aws.amazon.com/AmazonS3/latest/userguide/lifecycle-expire-general-considerations.html) to remove a bucket's files after a specific time (e.g: 30 days).
+
+</details>
 
 ## CRON example
 

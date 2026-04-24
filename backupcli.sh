@@ -38,6 +38,8 @@ usage() {
     echo "  --s3-storage-class <sc>             Specify the S3 storage class for the bucket."
     echo "                                      Default to STANDARD. Can be INTELLIGENT_TIERING, STANDARD_IA, GLACIER..."
     echo "  --s3-endpoint-url <url>             Specify the S3 endpoint for the bucket."
+    echo "  --ptar                              Use ptar format instead of tar.gz (requires plakar)."
+    echo "                                      Provides deduplication, built-in encryption, and versioning."
     echo
     echo "Examples:"
     echo "  $0 /path/to/source --dst /path/to/destination"
@@ -62,6 +64,7 @@ S3_ENDPOINT_URL=""
 PREFIX_NAME="archive"
 SOURCE_PATHS=()
 DEST_DIR=""
+USE_PTAR=""
 
 # Check if zip is installed
 if ! command -v zip &> /dev/null; then
@@ -100,6 +103,10 @@ while [ $# -gt 0 ]; do
             DEST_DIR=$2
             shift 2
             ;;
+        --ptar)
+            USE_PTAR="true"
+            shift
+            ;;
         *)
             # Assuming the remaining arguments are the sources paths
             SOURCE_PATHS+=("$1")
@@ -117,6 +124,15 @@ fi
 if [ ${#SOURCE_PATHS[@]} -eq 0 ]; then
     usage
     log_error "No source path provided."
+fi
+
+# Check if plakar is installed when using ptar
+if [ -n "$USE_PTAR" ]; then
+    if ! command -v plakar &> /dev/null; then
+        log_error "plakar is not installed but --ptar was specified."
+        log_error "Install it from: https://www.plakar.io/docs/v1.0.6/quickstart/installation/"
+        exit 1
+    fi
 fi
 
 # Verify if at least one source path is provided and valid
@@ -161,10 +177,15 @@ fi
 # Get current date and time for file naming
 CURRENT_DATETIME=$(date +"%Y%m%d_%H%M%S")
 
-# Construct the zip file name with date and time as prefix
-ZIP_FILE="${CURRENT_DATETIME}_${PREFIX_NAME}.tar.gz"
-if [ -n "${ENCRYPTION_KEY}" ]; then
-    ZIP_FILE="$ZIP_FILE.gpg"
+# Construct the archive file name with date and time as prefix
+if [ -n "$USE_PTAR" ]; then
+    # ptar format (encryption is built-in, no .gpg extension needed)
+    ZIP_FILE="${CURRENT_DATETIME}_${PREFIX_NAME}.ptar"
+else
+    ZIP_FILE="${CURRENT_DATETIME}_${PREFIX_NAME}.tar.gz"
+    if [ -n "${ENCRYPTION_KEY}" ]; then
+        ZIP_FILE="$ZIP_FILE.gpg"
+    fi
 fi
 ZIP_FILE_PATH="${DEST_DIR}/${ZIP_FILE}"
 
@@ -193,13 +214,25 @@ if [ "$TOTAL_SIZE" -gt "$AVAILABLE_SPACE" ]; then
 fi
 
 # Archive and compress, with optional encryption
-log_info "${#VALID_SOURCE_PATHS[@]} files will be zipped (maximum $TOTAL_SIZE_HR)..."
-if [ -n "$ENCRYPTION_KEY" ]; then
-    # Encrypt the archive with a password
-    tar cf - --exclude='*.sock' "${VALID_SOURCE_PATHS[@]}" | pigz | gpg --symmetric --batch --yes --passphrase "$ENCRYPTION_KEY" -o "$ZIP_FILE_PATH"
+log_info "${#VALID_SOURCE_PATHS[@]} files will be archived (maximum $TOTAL_SIZE_HR)..."
+if [ -n "$USE_PTAR" ]; then
+    # Use ptar format via plakar (built-in compression, deduplication, and encryption)
+    if [ -n "$ENCRYPTION_KEY" ]; then
+        # ptar with encryption (passphrase provided via PLAKAR_PASSPHRASE env var)
+        PLAKAR_PASSPHRASE="$ENCRYPTION_KEY" plakar ptar -o "$ZIP_FILE_PATH" "${VALID_SOURCE_PATHS[@]}"
+    else
+        # ptar without encryption (plaintext mode)
+        plakar ptar -plaintext -o "$ZIP_FILE_PATH" "${VALID_SOURCE_PATHS[@]}"
+    fi
 else
-    # Create a regular, non-encrypted compressed archive
-    tar cf - --exclude='*.sock' "${VALID_SOURCE_PATHS[@]}" | pigz > "$ZIP_FILE_PATH"
+    # Use traditional tar.gz format
+    if [ -n "$ENCRYPTION_KEY" ]; then
+        # Encrypt the archive with a password
+        tar cf - --exclude='*.sock' "${VALID_SOURCE_PATHS[@]}" | pigz | gpg --symmetric --batch --yes --passphrase "$ENCRYPTION_KEY" -o "$ZIP_FILE_PATH"
+    else
+        # Create a regular, non-encrypted compressed archive
+        tar cf - --exclude='*.sock' "${VALID_SOURCE_PATHS[@]}" | pigz > "$ZIP_FILE_PATH"
+    fi
 fi
 
 ZIP_FILE_SIZE=$(get_file_size "$ZIP_FILE_PATH")

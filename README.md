@@ -31,11 +31,19 @@ Options:
   --s3-endpoint-url <url>   Specify the S3 endpoint for the bucket.
   --ptar                    Use ptar format instead of tar.gz (requires plakar).
                             Provides deduplication, built-in encryption, and versioning.
+  --github-owner <owner>    Backup all repos (bare mirror), issues, PRs and Projects v2
+                            of a GitHub owner (org or user). Requires gh, git and jq,
+                            and the gh CLI must already be authenticated via 'gh auth login'.
+  --dry                     Validate prerequisites and print every step that would run,
+                            but skip the actual archive creation and S3 upload (and the
+                            clone + metadata fetch in --github-owner mode).
 
 Examples:
   backupcli /path/to/source --dst /path/to/destination
   backupcli /path/to/source --dst /path/to/destination --name backup --enc secretkey
   backupcli /path/to/source --name backup --enc secretkey --s3-bucket mybucket --s3-region us-east-1
+  backupcli --github-owner my-org --enc secretkey --s3-bucket mybucket --s3-region eu-west-3
+  backupcli --dry --github-owner my-org --enc secretkey --s3-bucket mybucket --s3-region eu-west-3
 ```
 
 Example :
@@ -63,6 +71,60 @@ To decrypt your encrypted archive :
 ```bash
 gpg --decrypt --batch --passphrase "YourPassphrase" -o myarchive.tar.gz myarchive.tar.gz.gpg
 ```
+
+## Backing up a GitHub owner (org or user)
+
+The `--github-owner` option takes a bare-mirror clone of every repository owned by a GitHub org or user account, exports issues, PRs and releases as JSON, exports Projects v2 data, and hands the resulting staging directory to the normal archive / encrypt / S3 pipeline.
+
+<details>
+<summary>👉 Prerequisites, authentication, archive layout, and restore</summary>
+
+### Prerequisites
+
+These tools must be installed manually before using `--github-owner` (not auto-installed if any is missing):
+
+- [`gh`](https://cli.github.com/) - the GitHub CLI
+- `git`
+- `jq`
+
+### Authentication
+
+_backupcli_ relies entirely on the gh CLI's existing authentication. Before using `--github-owner`, run:
+
+```bash
+gh auth login --scopes "repo,read:org,read:project,read:discussion"
+```
+
+You can verify the resulting authentication and scopes with:
+
+```bash
+gh auth status
+```
+
+Required scopes:
+
+- `repo` - read private repo content, issues, PRs, releases
+- `read:org` - enumerate org repositories
+- `read:project` - reads projects
+- `read:discussion` - reads discussions
+
+If `gh auth status` does not return success, backupcli will refuse to run and tell you to authenticate.
+
+Usage Example:
+
+```bash
+backupcli \
+    --github-owner my-org \
+    --enc supersecretpassword \
+    --s3-bucket my-backups --s3-region eu-west-3 \
+    --s3-storage-class STANDARD_IA
+```
+
+> Discussions: outer pagination is full, but each discussion captures only the first 100 comments and the first 50 replies per comment (GraphQL nested connections aren't auto-paginated, and we stay under GitHub's 500k node-count ceiling). Sufficient for nearly all real-world threads; flag if you need deeper coverage.
+
+Issues / PRs / Projects are exported for archival purposes; re-importing them into GitHub requires a separate importer.
+
+</details>
 
 ## Using ptar format
 
@@ -128,4 +190,5 @@ Tested with:
 - gpg
 - AWS CLI (optional, for S3 uploads)
 - plakar (optional, for --ptar format)
+- gh, git, jq (optional, for --github-owner)
 - Linux Ubuntu

@@ -283,8 +283,8 @@ if [ -n "$GITHUB_OWNER" ]; then
                 }
               }
             }' 2>/dev/null \
-            | jq -c '.data.organization.projectsV2.nodes[]?' > "$STAGING_DIR/projects/projects.jsonl" ); then
-            PROJECT_NUMBERS=$(jq -r '.number' < "$STAGING_DIR/projects/projects.jsonl" 2>/dev/null | sort -nu)
+            | jq -c '.data.organization.projectsV2.nodes[]? | select(. != null)' > "$STAGING_DIR/projects/projects.jsonl" ); then
+            PROJECT_NUMBERS=$(jq -r 'select(.number != null) | .number' < "$STAGING_DIR/projects/projects.jsonl" 2>/dev/null | sort -nu)
             while IFS= read -r PROJ_NUM; do
                 [ -z "$PROJ_NUM" ] && continue
                 log_info "[project #$PROJ_NUM] fetching items and fields..."

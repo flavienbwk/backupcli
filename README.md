@@ -89,26 +89,25 @@ These tools must be installed manually before using `--github-owner` (not auto-i
 
 ### Authentication
 
-_backupcli_ relies entirely on the gh CLI's existing authentication. Before using `--github-owner`, run:
+_backupcli_ uses gh's existing auth. Run `gh auth login`, then `gh auth status` to verify.
+
+**Classic PAT** — simplest:
 
 ```bash
 gh auth login --scopes "repo,read:org,read:project,read:discussion"
 ```
 
-You can verify the resulting authentication and scopes with:
+**Fine-grained PAT** — required if the org disabled classic tokens. Set **Resource owner = `<the-org>`** (not your personal account, otherwise the token only sees public org repos). Org admin must first enable fine-grained PATs at `Settings → Personal access tokens`. Required permissions:
+
+- Repository access: All repositories
+- Repository: Contents, Issues, Pull requests, Discussions — Read
+- Organization: Projects — Read
+
+Verify the PAT sees the expected repos:
 
 ```bash
-gh auth status
+gh api /orgs/<ORG>/repos --paginate --jq '.[].name' | wc -l
 ```
-
-Required scopes:
-
-- `repo` - read private repo content, issues, PRs, releases
-- `read:org` - enumerate org repositories
-- `read:project` - reads projects
-- `read:discussion` - reads discussions
-
-If `gh auth status` does not return success, backupcli will refuse to run and tell you to authenticate.
 
 Usage Example:
 

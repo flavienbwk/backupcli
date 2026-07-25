@@ -33,6 +33,12 @@ usage() {
     echo "                                      If not provided, a temporary directory will be used."
     echo "                                      Might be use omitted for dry-run."
     echo "  --enc <encryption_key>              Encrypt the archive with the specified encryption key."
+    echo "                                      The key is visible in the process list: prefer --enc-file."
+    echo "  --enc-file <key_file>               Encrypt the archive with the passphrase read from <key_file>."
+    echo "                                      The secret never transits through argv, neither here nor in"
+    echo "                                      the gpg/plakar child process. Intended for systemd units"
+    echo "                                      using LoadCredentialEncrypted= (\$CREDENTIALS_DIRECTORY)."
+    echo "                                      Mutually exclusive with --enc."
     echo "  --s3-bucket <bucket_name>           Specify the S3 bucket for backup."
     echo "  --s3-region <region_name>           Specify the S3 region for the bucket."
     echo "  --s3-storage-class <sc>             Specify the S3 storage class for the bucket."
@@ -65,6 +71,7 @@ get_file_size() {
 
 # Initialize variables defaults
 ENCRYPTION_KEY=""
+ENCRYPTION_KEY_FILE=""
 S3_BUCKET=""
 S3_REGION=""
 S3_STORAGE_CLASS="STANDARD"
@@ -87,6 +94,10 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --enc)
             ENCRYPTION_KEY=$2
+            shift 2
+            ;;
+        --enc-file)
+            ENCRYPTION_KEY_FILE=$2
             shift 2
             ;;
         --s3-bucket)
@@ -132,6 +143,34 @@ while [ $# -gt 0 ]; do
             ;;
     esac
 done
+
+# Resolve the encryption passphrase source. --enc-file is the recommended one:
+# the secret is read by the child process itself (gpg --passphrase-file,
+# plakar -keyfile) so it never lands in argv, where any local user could read it
+# with 'ps'. --enc stays supported for backwards compatibility.
+if [ -n "$ENCRYPTION_KEY" ] && [ -n "$ENCRYPTION_KEY_FILE" ]; then
+    log_error "--enc and --enc-file are mutually exclusive. Pick one."
+    exit 1
+fi
+if [ -n "$ENCRYPTION_KEY_FILE" ]; then
+    if [ ! -f "$ENCRYPTION_KEY_FILE" ]; then
+        log_error "Encryption key file not found: $ENCRYPTION_KEY_FILE"
+        exit 1
+    fi
+    if [ ! -r "$ENCRYPTION_KEY_FILE" ]; then
+        log_error "Encryption key file is not readable: $ENCRYPTION_KEY_FILE"
+        exit 1
+    fi
+    if [ ! -s "$ENCRYPTION_KEY_FILE" ]; then
+        log_error "Encryption key file is empty: $ENCRYPTION_KEY_FILE"
+        exit 1
+    fi
+fi
+# Single flag the rest of the script tests, whichever source was used.
+ENCRYPTION_ENABLED=""
+if [ -n "$ENCRYPTION_KEY" ] || [ -n "$ENCRYPTION_KEY_FILE" ]; then
+    ENCRYPTION_ENABLED="true"
+fi
 
 # GitHub owner backup staging: produce a local directory with mirror clones
 # (repos + wikis if enabled via token), issues, PRs and Projects v2 data,
@@ -374,7 +413,7 @@ if [ -n "$USE_PTAR" ]; then
     ZIP_FILE="${CURRENT_DATETIME}_${PREFIX_NAME}.ptar"
 else
     ZIP_FILE="${CURRENT_DATETIME}_${PREFIX_NAME}.tar.gz"
-    if [ -n "${ENCRYPTION_KEY}" ]; then
+    if [ -n "${ENCRYPTION_ENABLED}" ]; then
         ZIP_FILE="$ZIP_FILE.gpg"
     fi
 fi
@@ -423,15 +462,21 @@ fi
 if [ -n "$DRY_RUN" ]; then
     if [ -n "$USE_PTAR" ]; then
         log_info "[dry] Would create ptar archive: $ZIP_FILE_PATH"
-        if [ -n "$ENCRYPTION_KEY" ]; then
+        if [ -n "$ENCRYPTION_KEY_FILE" ]; then
+            log_info "[dry]   format: ptar with built-in encryption (passphrase read by plakar from $ENCRYPTION_KEY_FILE)"
+        elif [ -n "$ENCRYPTION_KEY" ]; then
             log_info "[dry]   format: ptar with built-in encryption (passphrase via PLAKAR_PASSPHRASE)"
         else
             log_info "[dry]   format: ptar plaintext (no encryption)"
         fi
     else
-        if [ -n "$ENCRYPTION_KEY" ]; then
+        if [ -n "$ENCRYPTION_ENABLED" ]; then
             log_info "[dry] Would create tar.gz.gpg archive: $ZIP_FILE_PATH"
-            log_info "[dry]   pipeline: tar cf - --exclude='*.sock' <sources> | pigz | gpg --symmetric"
+            if [ -n "$ENCRYPTION_KEY_FILE" ]; then
+                log_info "[dry]   pipeline: tar cf - --exclude='*.sock' <sources> | pigz | gpg --symmetric --cipher-algo AES256 --passphrase-file $ENCRYPTION_KEY_FILE"
+            else
+                log_info "[dry]   pipeline: tar cf - --exclude='*.sock' <sources> | pigz | gpg --symmetric --cipher-algo AES256"
+            fi
         else
             log_info "[dry] Would create tar.gz archive: $ZIP_FILE_PATH"
             log_info "[dry]   pipeline: tar cf - --exclude='*.sock' <sources> | pigz"
@@ -444,7 +489,12 @@ else
     log_info "${#VALID_SOURCE_PATHS[@]} files will be archived (maximum $TOTAL_SIZE_HR)..."
     if [ -n "$USE_PTAR" ]; then
         # Use ptar format via plakar (built-in compression, deduplication, and encryption)
-        if [ -n "$ENCRYPTION_KEY" ]; then
+        if [ -n "$ENCRYPTION_KEY_FILE" ]; then
+            # ptar with encryption, plakar reads the passphrase from the key file itself.
+            # PLAKAR_PASSPHRASE is scrubbed from the child environment: when set, it takes
+            # precedence over -keyfile and would silently encrypt under the wrong secret.
+            env -u PLAKAR_PASSPHRASE plakar -keyfile "$ENCRYPTION_KEY_FILE" ptar -o "$ZIP_FILE_PATH" "${VALID_SOURCE_PATHS[@]}"
+        elif [ -n "$ENCRYPTION_KEY" ]; then
             # ptar with encryption (passphrase provided via PLAKAR_PASSPHRASE env var)
             PLAKAR_PASSPHRASE="$ENCRYPTION_KEY" plakar ptar -o "$ZIP_FILE_PATH" "${VALID_SOURCE_PATHS[@]}"
         else
@@ -453,9 +503,12 @@ else
         fi
     else
         # Use traditional tar.gz format
-        if [ -n "$ENCRYPTION_KEY" ]; then
+        if [ -n "$ENCRYPTION_KEY_FILE" ]; then
+            # Encrypt the archive, gpg reads the passphrase from the key file itself
+            tar cf - --exclude='*.sock' "${VALID_SOURCE_PATHS[@]}" | pigz | gpg --symmetric --cipher-algo AES256 --batch --yes --passphrase-file "$ENCRYPTION_KEY_FILE" -o "$ZIP_FILE_PATH"
+        elif [ -n "$ENCRYPTION_KEY" ]; then
             # Encrypt the archive with a password
-            tar cf - --exclude='*.sock' "${VALID_SOURCE_PATHS[@]}" | pigz | gpg --symmetric --batch --yes --passphrase "$ENCRYPTION_KEY" -o "$ZIP_FILE_PATH"
+            tar cf - --exclude='*.sock' "${VALID_SOURCE_PATHS[@]}" | pigz | gpg --symmetric --cipher-algo AES256 --batch --yes --passphrase "$ENCRYPTION_KEY" -o "$ZIP_FILE_PATH"
         else
             # Create a regular, non-encrypted compressed archive
             tar cf - --exclude='*.sock' "${VALID_SOURCE_PATHS[@]}" | pigz > "$ZIP_FILE_PATH"

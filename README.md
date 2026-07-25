@@ -24,6 +24,12 @@ Options:
                             If not provided, a temporary directory will be used.
                             Might be use omitted for dry-run.
   --enc <encryption_key>    Encrypt the archive with the specified encryption key.
+                            The key is visible in the process list: prefer --enc-file.
+  --enc-file <key_file>     Encrypt with the passphrase read from <key_file>. The secret
+                            never transits through argv, neither here nor in the gpg /
+                            plakar child process. Intended for systemd units using
+                            LoadCredentialEncrypted= ($CREDENTIALS_DIRECTORY).
+                            Mutually exclusive with --enc.
   --s3-bucket <bucket_name> Specify the S3 bucket for backup.
   --s3-region <region_name> Specify the S3 region for the bucket.
   --s3-storage-class <sc>   Specify the S3 storage class for the bucket.
@@ -65,6 +71,14 @@ If you want more security, use symmetric encryption :
 ```bash
 backupcli /path/to/gitlab_backup_dir --name gitlab_backup --enc supersecretpassword --s3-bucket mybucket --s3-region eu-west-3
 ```
+
+`--enc` puts the passphrase in the process list, where any local user can read it with `ps`. For unattended jobs, use `--enc-file` instead and let the tool read the secret from a file, typically one provided by systemd:
+
+```bash
+backupcli /path/to/gitlab_backup_dir --name gitlab_backup --enc-file "$CREDENTIALS_DIRECTORY/backup-key" --s3-bucket mybucket --s3-region eu-west-3
+```
+
+Notes on the tar.gz pipeline: the archive is encrypted with `gpg --symmetric --cipher-algo AES256`, which is OpenPGP's AES-256 in CFB mode with an MDC integrity check. If your policy requires an AEAD mode, use `--ptar`: plakar encrypts with AES-256-GCM-SIV and derives the key with Argon2id.
 
 To decrypt your encrypted archive :
 
@@ -133,12 +147,13 @@ The `--ptar` option uses the modern [ptar format](https://www.plakar.io/posts/20
 <summary>👉 Install dependencies to use plakar (Debian/Ubuntu)</summary>
 
 ```bash
-curl -fsSL https://packages.plakar.io/keys/plakar.gpg | sudo gpg --dearmor -o /usr/share/keyrings/plakar.gpg
-echo "deb [signed-by=/usr/share/keyrings/plakar.gpg] https://packages.plakar.io/deb stable main" | sudo tee /etc/apt/sources.list.d/plakar.list
-sudo apt-get update && sudo apt-get install plakar
+PLAKAR_VERSION=1.1.4
+ARCH=$(dpkg --print-architecture)
+curl -fsSLO "https://github.com/PlakarKorp/plakar/releases/download/v${PLAKAR_VERSION}/plakar_${PLAKAR_VERSION}_linux_${ARCH}.deb"
+curl -fsSLO "https://github.com/PlakarKorp/plakar/releases/download/v${PLAKAR_VERSION}/plakar_${PLAKAR_VERSION}_checksums.txt"
+sha256sum --ignore-missing -c "plakar_${PLAKAR_VERSION}_checksums.txt"
+sudo apt-get install -y "./plakar_${PLAKAR_VERSION}_linux_${ARCH}.deb"
 ```
-
-For other systems, see the [official installation guide](https://www.plakar.io/docs/v1.0.6/quickstart/installation/).
 
 Example usage:
 
@@ -151,7 +166,12 @@ backupcli /path/to/source --dest /path/to/dest --ptar --enc secretpassword
 
 # Upload encrypted ptar to S3
 backupcli /path/to/source --ptar --enc secretpassword --s3-bucket mybucket --s3-region eu-west-3
+
+# Same, with the passphrase read from a file instead of argv
+backupcli /path/to/source --ptar --enc-file /run/keys/backup-key --s3-bucket mybucket --s3-region eu-west-3
 ```
+
+With `--enc-file`, plakar is invoked as `plakar -keyfile <file> ptar ...` and `PLAKAR_PASSPHRASE` is removed from its environment, since that variable takes precedence over `-keyfile` and would otherwise silently encrypt the archive under a different secret.
 
 To browse or restore from a ptar archive:
 
@@ -161,6 +181,9 @@ plakar at myarchive.ptar ls
 
 # Restore specific files
 plakar at myarchive.ptar restore -to ./recovery /path/to/file
+
+# Non-interactive, passphrase from a file
+plakar -keyfile /run/keys/backup-key at myarchive.ptar ls
 ```
 
 You might want to [setup Buckets Lifecycle](https://docs.aws.amazon.com/AmazonS3/latest/userguide/lifecycle-expire-general-considerations.html) to remove a bucket's files after a specific time (e.g: 30 days).
